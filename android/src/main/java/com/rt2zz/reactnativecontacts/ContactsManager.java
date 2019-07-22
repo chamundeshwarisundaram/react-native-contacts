@@ -98,7 +98,7 @@ public class ContactsManager extends ReactContextBaseJavaModule implements Activ
                 ContentResolver cr = context.getContentResolver();
 
                 ContactsProvider contactsProvider = new ContactsProvider(cr);
-                WritableArray contacts = contactsProvider.getContacts();
+                WritableArray contacts = contactsProvider.getContacts(context);
 
                 callback.invoke(null, contacts);
                 return null;
@@ -112,7 +112,7 @@ public class ContactsManager extends ReactContextBaseJavaModule implements Activ
      */
     @ReactMethod
     public void getContactsMatchingString(final String searchString, final Callback callback) {
-        getAllContactsMatchingString(searchString, callback);
+        getAllContactsMatchingString(searchString, callback,getReactApplicationContext());
     }
 
     /**
@@ -122,14 +122,14 @@ public class ContactsManager extends ReactContextBaseJavaModule implements Activ
      * @param searchString String to match
      * @param callback user provided callback to run at completion
      */
-    private void getAllContactsMatchingString(final String searchString, final Callback callback) {
+    private void getAllContactsMatchingString(final String searchString, final Callback callback, Context context) {
         AsyncTask<Void,Void,Void> myAsyncTask = new AsyncTask<Void,Void,Void>() {
             @Override
             protected Void doInBackground(final Void ... params) {
                 Context context = getReactApplicationContext();
                 ContentResolver cr = context.getContentResolver();
                 ContactsProvider contactsProvider = new ContactsProvider(cr);
-                WritableArray contacts = contactsProvider.getContactsMatchingString(searchString);
+                WritableArray contacts = contactsProvider.getContactsMatchingString(searchString,context);
 
                 callback.invoke(null, contacts);
                 return null;
@@ -760,8 +760,8 @@ public class ContactsManager extends ReactContextBaseJavaModule implements Activ
             // remove existing phoneNumbers first
             op = ContentProviderOperation.newDelete(ContactsContract.Data.CONTENT_URI)
                     .withSelection(
-                        ContactsContract.Data.MIMETYPE  + "=? AND "+ ContactsContract.Data.RAW_CONTACT_ID + " = ?",
-                        new String[]{String.valueOf(CommonDataKinds.Phone.CONTENT_ITEM_TYPE), String.valueOf(rawContactId)}
+                            ContactsContract.Data.MIMETYPE  + "=? AND "+ ContactsContract.Data.RAW_CONTACT_ID + " = ?",
+                            new String[]{String.valueOf(CommonDataKinds.Phone.CONTENT_ITEM_TYPE), String.valueOf(rawContactId)}
                     );
             ops.add(op.build());
 
@@ -795,8 +795,8 @@ public class ContactsManager extends ReactContextBaseJavaModule implements Activ
             // remove existing emails first
             op = ContentProviderOperation.newDelete(ContactsContract.Data.CONTENT_URI)
                     .withSelection(
-                        ContactsContract.Data.MIMETYPE  + "=? AND "+ ContactsContract.Data.RAW_CONTACT_ID + " = ?",
-                        new String[]{String.valueOf(CommonDataKinds.Email.CONTENT_ITEM_TYPE), String.valueOf(rawContactId)}
+                            ContactsContract.Data.MIMETYPE  + "=? AND "+ ContactsContract.Data.RAW_CONTACT_ID + " = ?",
+                            new String[]{String.valueOf(CommonDataKinds.Email.CONTENT_ITEM_TYPE), String.valueOf(rawContactId)}
                     );
             ops.add(op.build());
 
@@ -826,10 +826,10 @@ public class ContactsManager extends ReactContextBaseJavaModule implements Activ
 
         if (postalAddresses != null){
             //remove existing addresses
-             op = ContentProviderOperation.newDelete(ContactsContract.Data.CONTENT_URI)
+            op = ContentProviderOperation.newDelete(ContactsContract.Data.CONTENT_URI)
                     .withSelection(
-                        ContactsContract.Data.MIMETYPE  + "=? AND "+ ContactsContract.Data.RAW_CONTACT_ID + " = ?",
-                        new String[]{String.valueOf(CommonDataKinds.StructuredPostal.CONTENT_ITEM_TYPE), String.valueOf(rawContactId)}
+                            ContactsContract.Data.MIMETYPE  + "=? AND "+ ContactsContract.Data.RAW_CONTACT_ID + " = ?",
+                            new String[]{String.valueOf(CommonDataKinds.StructuredPostal.CONTENT_ITEM_TYPE), String.valueOf(rawContactId)}
                     );
             ops.add(op.build());
 
@@ -874,16 +874,16 @@ public class ContactsManager extends ReactContextBaseJavaModule implements Activ
         String recordID = contact.hasKey("recordID") ? contact.getString("recordID") : null;
 
         try {
-               Context ctx = getReactApplicationContext();
+            Context ctx = getReactApplicationContext();
 
-               Uri uri = Uri.withAppendedPath(ContactsContract.Contacts.CONTENT_URI,recordID);
-               ContentResolver cr = ctx.getContentResolver();
-               int deleted = cr.delete(uri,null,null);
+            Uri uri = Uri.withAppendedPath(ContactsContract.Contacts.CONTENT_URI,recordID);
+            ContentResolver cr = ctx.getContentResolver();
+            int deleted = cr.delete(uri,null,null);
 
-               if(deleted > 0)
-                 callback.invoke(null, recordID); // success
-               else
-                 callback.invoke(null, null); // something was wrong
+            if(deleted > 0)
+                callback.invoke(null, recordID); // success
+            else
+                callback.invoke(null, null); // something was wrong
 
         } catch (Exception e) {
             callback.invoke(e.toString(), null);
@@ -1051,7 +1051,7 @@ public class ContactsManager extends ReactContextBaseJavaModule implements Activ
      * Required for ActivityEventListener
      */
     @Override
-    public void onActivityResult(Activity activity, int requestCode, int resultCode, Intent data) {
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode != REQUEST_OPEN_CONTACT_FORM && requestCode != REQUEST_OPEN_EXISTING_CONTACT) {
             return;
         }
@@ -1096,8 +1096,9 @@ public class ContactsManager extends ReactContextBaseJavaModule implements Activ
     /*
      * Required for ActivityEventListener
      */
-    @Override
+    //@Override
     public void onNewIntent(Intent intent) {
     }
+
 
 }

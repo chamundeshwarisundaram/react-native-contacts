@@ -17,6 +17,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import android.content.Context;
 
 import static android.provider.ContactsContract.CommonDataKinds.Contactables;
 import static android.provider.ContactsContract.CommonDataKinds.Email;
@@ -86,7 +87,7 @@ public class ContactsProvider {
         this.contentResolver = contentResolver;
     }
 
-    public WritableArray getContactsMatchingString(String searchString) {
+    public WritableArray getContactsMatchingString(String searchString,Context context) {
         Map<String, Contact> matchingContacts;
         {
             Cursor cursor = contentResolver.query(
@@ -99,7 +100,7 @@ public class ContactsProvider {
             );
 
             try {
-                matchingContacts = loadContactsFrom(cursor);
+                matchingContacts = loadContactsFrom(cursor,context);
             } finally {
                 if (cursor != null) {
                     cursor.close();
@@ -114,7 +115,7 @@ public class ContactsProvider {
         return contacts;
     }
 
-     public WritableMap getContactByRawId(String contactRawId) {
+    public WritableMap getContactByRawId(String contactRawId) {
 
         // Get Contact Id from Raw Contact Id
         String[] projections = new String[]{ContactsContract.RawContacts.CONTACT_ID};
@@ -147,15 +148,15 @@ public class ContactsProvider {
         Map<String, Contact> matchingContacts;
         {
             Cursor cursor = contentResolver.query(
-                ContactsContract.Data.CONTENT_URI,
-                FULL_PROJECTION.toArray(new String[FULL_PROJECTION.size()]),
-                ContactsContract.RawContacts.CONTACT_ID + " = ?",
-                new String[]{contactId},
-                null
+                    ContactsContract.Data.CONTENT_URI,
+                    FULL_PROJECTION.toArray(new String[FULL_PROJECTION.size()]),
+                    ContactsContract.RawContacts.CONTACT_ID + " = ?",
+                    new String[]{contactId},
+                    null
             );
 
             try {
-                matchingContacts = loadContactsFrom(cursor);
+                matchingContacts = loadContactsFrom(cursor,null);
             } finally {
                 if (cursor != null) {
                     cursor.close();
@@ -167,10 +168,10 @@ public class ContactsProvider {
             return matchingContacts.values().iterator().next().toMap();
         }
 
-       return null;
+        return null;
     }
 
-    public WritableArray getContacts() {
+    public WritableArray getContacts(Context context) {
         Map<String, Contact> justMe;
         {
             Cursor cursor = contentResolver.query(
@@ -182,7 +183,7 @@ public class ContactsProvider {
             );
 
             try {
-                justMe = loadContactsFrom(cursor);
+                justMe = loadContactsFrom(cursor,context);
             } finally {
                 if (cursor != null) {
                     cursor.close();
@@ -196,28 +197,28 @@ public class ContactsProvider {
                     ContactsContract.Data.CONTENT_URI,
                     FULL_PROJECTION.toArray(new String[FULL_PROJECTION.size()]),
                     ContactsContract.Data.MIMETYPE + "=? OR "
-                    + ContactsContract.Data.MIMETYPE + "=? OR "
-                    + ContactsContract.Data.MIMETYPE + "=? OR "
-                    + ContactsContract.Data.MIMETYPE + "=? OR "
-                    + ContactsContract.Data.MIMETYPE + "=? OR "
-                    + ContactsContract.Data.MIMETYPE + "=? OR "
-                    + ContactsContract.Data.MIMETYPE + "=? OR "
-                    + ContactsContract.Data.MIMETYPE + "=?",
+                            + ContactsContract.Data.MIMETYPE + "=? OR "
+                            + ContactsContract.Data.MIMETYPE + "=? OR "
+                            + ContactsContract.Data.MIMETYPE + "=? OR "
+                            + ContactsContract.Data.MIMETYPE + "=? OR "
+                            + ContactsContract.Data.MIMETYPE + "=? OR "
+                            + ContactsContract.Data.MIMETYPE + "=? OR "
+                            + ContactsContract.Data.MIMETYPE + "=?",
                     new String[]{
-                        Email.CONTENT_ITEM_TYPE,
-                        Phone.CONTENT_ITEM_TYPE,
-                        StructuredName.CONTENT_ITEM_TYPE,
-                        Organization.CONTENT_ITEM_TYPE,
-                        StructuredPostal.CONTENT_ITEM_TYPE,
-                        Note.CONTENT_ITEM_TYPE,
-                        Website.CONTENT_ITEM_TYPE,
-                        Event.CONTENT_ITEM_TYPE,
+                            Email.CONTENT_ITEM_TYPE,
+                            Phone.CONTENT_ITEM_TYPE,
+                            StructuredName.CONTENT_ITEM_TYPE,
+                            Organization.CONTENT_ITEM_TYPE,
+                            StructuredPostal.CONTENT_ITEM_TYPE,
+                            Note.CONTENT_ITEM_TYPE,
+                            Website.CONTENT_ITEM_TYPE,
+                            Event.CONTENT_ITEM_TYPE,
                     },
                     null
             );
 
             try {
-                everyoneElse = loadContactsFrom(cursor);
+                everyoneElse = loadContactsFrom(cursor,context);
             } finally {
                 if (cursor != null) {
                     cursor.close();
@@ -237,7 +238,7 @@ public class ContactsProvider {
     }
 
     @NonNull
-    private Map<String, Contact> loadContactsFrom(Cursor cursor) {
+    private Map<String, Contact> loadContactsFrom(Cursor cursor,Context context) {
 
         Map<String, Contact> map = new LinkedHashMap<>();
 
@@ -306,18 +307,40 @@ public class ContactsProvider {
                         String label;
                         switch (phoneType) {
                             case Phone.TYPE_HOME:
-                                label = "home";
+                                if(context !=null){
+                                    label=ContactsContract.CommonDataKinds.Phone.getTypeLabel(context.getResources(), phoneType , "").toString();
+                                }else{
+                                    label = "home";
+                                }
                                 break;
                             case Phone.TYPE_WORK:
-                                label = "work";
+                                if(context !=null){
+                                    label=ContactsContract.CommonDataKinds.Phone.getTypeLabel(context.getResources(), phoneType , "").toString();
+                                }else{
+                                    label = "work";
+                                }
                                 break;
                             case Phone.TYPE_MOBILE:
-                                label = "mobile";
+                                if(context !=null){
+                                    label=ContactsContract.CommonDataKinds.Phone.getTypeLabel(context.getResources(), phoneType , "").toString();
+                                }else{
+                                    label = "mobile";
+                                }
                                 break;
                             default:
-                                label = "other";
+                                if(context !=null){
+                                    label = context.getResources().getString(ContactsContract.CommonDataKinds.Phone.getTypeLabelResource(phoneType));
+                                    if (label.equalsIgnoreCase("Custom")){
+                                        label = cursor.getString(cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.LABEL));
+                                    }else{
+                                        label=ContactsContract.CommonDataKinds.Phone.getTypeLabel(context.getResources(), phoneType , "").toString();;
+                                    }
+                                }else{
+                                    label = "other";
+                                }
                         }
                         contact.phones.add(new Contact.Item(label, phoneNumber, id));
+
                     }
                     break;
                 case Email.CONTENT_ITEM_TYPE:
