@@ -1098,6 +1098,7 @@ public class ContactsManager extends ReactContextBaseJavaModule implements Activ
      */
     @Override
     public void onNewIntent(Intent intent) {
+        
     }
 
 
