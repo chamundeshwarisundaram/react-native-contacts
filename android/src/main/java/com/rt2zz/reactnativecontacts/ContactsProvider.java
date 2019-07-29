@@ -42,8 +42,10 @@ public class ContactsProvider {
         add(Contactables.PHOTO_URI);
         add(StructuredName.DISPLAY_NAME);
         add(StructuredName.GIVEN_NAME);
+        add(StructuredName.PHONETIC_GIVEN_NAME);
         add(StructuredName.MIDDLE_NAME);
         add(StructuredName.FAMILY_NAME);
+        add(StructuredName.PHONETIC_FAMILY_NAME);
         add(StructuredName.PREFIX);
         add(StructuredName.SUFFIX);
         add(Phone.NUMBER);
@@ -294,8 +296,10 @@ public class ContactsProvider {
             switch(mimeType) {
                 case StructuredName.CONTENT_ITEM_TYPE:
                     contact.givenName = cursor.getString(cursor.getColumnIndex(StructuredName.GIVEN_NAME));
+                    contact.phoneticGivenName = cursor.getString(cursor.getColumnIndex(StructuredName.PHONETIC_GIVEN_NAME));
                     contact.middleName = cursor.getString(cursor.getColumnIndex(StructuredName.MIDDLE_NAME));
                     contact.familyName = cursor.getString(cursor.getColumnIndex(StructuredName.FAMILY_NAME));
+                    contact.phoneticFamilyName= cursor.getString(cursor.getColumnIndex(StructuredName.PHONETIC_FAMILY_NAME));
                     contact.prefix = cursor.getString(cursor.getColumnIndex(StructuredName.PREFIX));
                     contact.suffix = cursor.getString(cursor.getColumnIndex(StructuredName.SUFFIX));
                     break;
@@ -310,21 +314,21 @@ public class ContactsProvider {
                                 if(context !=null){
                                     label=ContactsContract.CommonDataKinds.Phone.getTypeLabel(context.getResources(), phoneType , "").toString();
                                 }else{
-                                    label = "home";
+                                label = "home";
                                 }
                                 break;
                             case Phone.TYPE_WORK:
                                 if(context !=null){
                                     label=ContactsContract.CommonDataKinds.Phone.getTypeLabel(context.getResources(), phoneType , "").toString();
                                 }else{
-                                    label = "work";
+                                label = "work";
                                 }
                                 break;
                             case Phone.TYPE_MOBILE:
                                 if(context !=null){
                                     label=ContactsContract.CommonDataKinds.Phone.getTypeLabel(context.getResources(), phoneType , "").toString();
                                 }else{
-                                    label = "mobile";
+                                label = "mobile";
                                 }
                                 break;
                             default:
@@ -336,8 +340,8 @@ public class ContactsProvider {
                                         label=ContactsContract.CommonDataKinds.Phone.getTypeLabel(context.getResources(), phoneType , "").toString();;
                                     }
                                 }else{
-                                    label = "other";
-                                }
+                                label = "other";
+                        }
                         }
                         contact.phones.add(new Contact.Item(label, phoneNumber, id));
 
@@ -444,8 +448,10 @@ public class ContactsProvider {
         private String rawContactId;
         private String displayName;
         private String givenName = "";
+        private String phoneticGivenName = "";
         private String middleName = "";
         private String familyName = "";
+        private String phoneticFamilyName = "";
         private String prefix = "";
         private String suffix = "";
         private String company = "";
@@ -470,8 +476,10 @@ public class ContactsProvider {
             contact.putString("recordID", contactId);
             contact.putString("rawContactId", rawContactId);
             contact.putString("givenName", TextUtils.isEmpty(givenName) ? displayName : givenName);
+            contact.putString("phoneticGivenName", phoneticGivenName);
             contact.putString("middleName", middleName);
             contact.putString("familyName", familyName);
+            contact.putString("phoneticFamilyName", phoneticFamilyName);
             contact.putString("prefix", prefix);
             contact.putString("suffix", suffix);
             contact.putString("company", company);
