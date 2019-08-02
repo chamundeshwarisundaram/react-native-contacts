@@ -4,6 +4,16 @@
 #import <AssetsLibrary/AssetsLibrary.h>
 #import <React/RCTLog.h>
 
+@interface SortContact : NSObject
+
+@property(nonatomic, strong) NSString *sortName;
+
+@end
+
+@implementation SortContact
+
+@end
+
 @implementation RCTContacts {
     CNContactStore * contactStore;
     
@@ -101,27 +111,28 @@ RCT_EXPORT_METHOD(getContactsMatchingString:(NSString *)string callback:(RCTResp
 }
 
 -(void) getAllContacts:(RCTResponseSenderBlock) callback
-        withThumbnails:(BOOL) withThumbnails
+        withThumbnails:(BOOL) withThumbnails withSortOrder:(BOOL)isLastName
 {
     CNContactStore* contactStore = [self contactsStore:callback];
     if(!contactStore)
         return;
     
-    [self retrieveContactsFromAddressBook:contactStore withThumbnails:withThumbnails withCallback:callback];
+    [self retrieveContactsFromAddressBook:contactStore withThumbnails:withThumbnails withSortOrder:isLastName withCallback:callback];
 }
 
-RCT_EXPORT_METHOD(getAll:(RCTResponseSenderBlock) callback)
+RCT_EXPORT_METHOD(getAll:(BOOL)isLastName withCallback:(RCTResponseSenderBlock) callback)
 {
-    [self getAllContacts:callback withThumbnails:true];
+    [self getAllContacts:callback withThumbnails:true withSortOrder:isLastName];
 }
 
-RCT_EXPORT_METHOD(getAllWithoutPhotos:(RCTResponseSenderBlock) callback)
+RCT_EXPORT_METHOD(getAllWithoutPhotos:(BOOL)isLastName withCallback:(RCTResponseSenderBlock) callback)
 {
-    [self getAllContacts:callback withThumbnails:false];
+    [self getAllContacts:callback withThumbnails:false withSortOrder:isLastName];
 }
 
 -(void) retrieveContactsFromAddressBook:(CNContactStore*)contactStore
                          withThumbnails:(BOOL) withThumbnails
+                          withSortOrder:(BOOL) isLastName
                            withCallback:(RCTResponseSenderBlock) callback
 {
     NSMutableArray *contacts = [[NSMutableArray alloc] init];
@@ -156,6 +167,67 @@ RCT_EXPORT_METHOD(getAllWithoutPhotos:(RCTResponseSenderBlock) callback)
         NSDictionary *contactDict = [self contactToDictionary: contact withThumbnails:withThumbnails];
         [contacts addObject:contactDict];
     }];
+    
+    
+//    NSSortDescriptor *lastNameDescriptor = [[NSSortDescriptor alloc]
+//
+//                                            initWithKey:@"phoneticGivenName" ascending:YES selector:@selector(localizedStandardCompare:)];
+//
+//    NSSortDescriptor * firstNameDescriptor = [[NSSortDescriptor alloc]
+//
+//                                              initWithKey:@"phoneticFamilyName" ascending:YES selector:@selector(localizedStandardCompare:)];
+//
+//    NSArray *sortDescriptors = @[lastNameDescriptor, firstNameDescriptor];
+    
+//    NSArray *sortedArray = [contacts sortedArrayUsingDescriptors:sortDescriptors];
+    
+    NSArray *sectiontitle = [[UILocalizedIndexedCollation currentCollation] sectionIndexTitles];
+    SEL selector = @selector(sortName);
+    for (NSMutableDictionary *contactDict in contacts) {
+        NSString *phoneticFamilyName = [contactDict valueForKey:@"phoneticFamilyName"];
+        if([phoneticFamilyName length] > 0) {
+            CFMutableStringRef mString = CFStringCreateMutableCopy(kCFAllocatorDefault,0,(CFStringRef)phoneticFamilyName);
+            
+            BOOL result = CFStringTransform(mString, NULL, kCFStringTransformHiraganaKatakana, NO);
+            
+            if(result){
+                NSString* resultString = [NSString stringWithFormat:@"%@",mString];
+                [contactDict setObject:resultString forKey:@"phoneticFamilyName"];
+            }
+            CFRelease(mString);
+        }
+        
+        NSString *phoneticGivenName = [contactDict valueForKey:@"phoneticGivenName"];
+        if([phoneticGivenName length] > 0) {
+            CFMutableStringRef mString = CFStringCreateMutableCopy(kCFAllocatorDefault,0,(CFStringRef)phoneticGivenName);
+            
+            BOOL result = CFStringTransform(mString, NULL, kCFStringTransformHiraganaKatakana, NO);
+            
+            if(result){
+                NSString* resultString = [NSString stringWithFormat:@"%@",mString];
+                [contactDict setObject:resultString forKey:@"phoneticGivenName"];
+            }
+            CFRelease(mString);
+        }
+        NSString *sortedString = @"#";
+        if (isLastName) {
+            sortedString = [NSString stringWithFormat:@"%@%@", [contactDict valueForKey:@"phoneticFamilyName"], [contactDict valueForKey:@"familyName"]];
+            if(sortedString.length == 0){
+                sortedString = [NSString stringWithFormat:@"%@%@", [contactDict valueForKey:@"phoneticGivenName"], [contactDict valueForKey:@"givenName"]];
+            }
+        } else {
+            sortedString = [NSString stringWithFormat:@"%@%@", [contactDict valueForKey:@"phoneticGivenName"], [contactDict valueForKey:@"givenName"]];
+            if(sortedString.length == 0){
+                sortedString = [NSString stringWithFormat:@"%@%@", [contactDict valueForKey:@"phoneticFamilyName"], [contactDict valueForKey:@"familyName"]];
+            }
+        }
+        
+        SortContact *sortContact = [[SortContact alloc] init];
+        sortContact.sortName = sortedString;
+        NSInteger sectionNumber = [[UILocalizedIndexedCollation currentCollation] sectionForObject:sortContact collationStringSelector:selector];
+//        NSLog(@"sectiontitle %@ %@ %@",[sectiontitle objectAtIndex:sectionNumber], [contactDict valueForKey:@"familyName"], [contactDict valueForKey:@"givenName"]);
+        [contactDict setObject:[sectiontitle objectAtIndex:sectionNumber] forKey:@"sortGroup"];
+    }
     
     callback(@[[NSNull null], contacts]);
 }
