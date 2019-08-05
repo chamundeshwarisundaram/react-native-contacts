@@ -332,16 +332,17 @@ public class ContactsProvider {
                                 }
                                 break;
                             default:
-                                if(context !=null){
-                                    label = context.getResources().getString(ContactsContract.CommonDataKinds.Phone.getTypeLabelResource(phoneType));
-                                    if (label.equalsIgnoreCase("Custom")){
+                                int customIndex = cursor.getColumnIndex(Phone.TYPE);
+                                int labelType = cursor.getInt(customIndex);
+                                if (context != null) {
+                                    if (labelType == Phone.TYPE_CUSTOM) {
                                         label = cursor.getString(cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.LABEL));
-                                    }else{
-                                        label=ContactsContract.CommonDataKinds.Phone.getTypeLabel(context.getResources(), phoneType , "").toString();;
+                                    } else {
+                                        label = ContactsContract.CommonDataKinds.Phone.getTypeLabel(context.getResources(), phoneType, "").toString();
                                     }
-                                }else{
-                                label = "other";
-                        }
+                                } else {
+                                    label = "other";
+                                }
                         }
                         contact.phones.add(new Contact.Item(label, phoneNumber, id));
 
