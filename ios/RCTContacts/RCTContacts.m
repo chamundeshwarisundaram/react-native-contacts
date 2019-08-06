@@ -130,6 +130,12 @@ RCT_EXPORT_METHOD(getAllWithoutPhotos:(BOOL)isLastName withCallback:(RCTResponse
     [self getAllContacts:callback withThumbnails:false withSortOrder:isLastName];
 }
 
+RCT_EXPORT_METHOD(getSortGroups:(RCTResponseSenderBlock) callback)
+{
+    NSArray *sectiontitleArray = [[UILocalizedIndexedCollation currentCollation] sectionIndexTitles];
+    callback(@[[NSNull null], sectiontitleArray]);
+}
+
 -(void) retrieveContactsFromAddressBook:(CNContactStore*)contactStore
                          withThumbnails:(BOOL) withThumbnails
                           withSortOrder:(BOOL) isLastName
@@ -169,68 +175,98 @@ RCT_EXPORT_METHOD(getAllWithoutPhotos:(BOOL)isLastName withCallback:(RCTResponse
     }];
     
     
-//    NSSortDescriptor *lastNameDescriptor = [[NSSortDescriptor alloc]
-//
-//                                            initWithKey:@"phoneticGivenName" ascending:YES selector:@selector(localizedStandardCompare:)];
-//
-//    NSSortDescriptor * firstNameDescriptor = [[NSSortDescriptor alloc]
-//
-//                                              initWithKey:@"phoneticFamilyName" ascending:YES selector:@selector(localizedStandardCompare:)];
-//
-//    NSArray *sortDescriptors = @[lastNameDescriptor, firstNameDescriptor];
-    
-//    NSArray *sortedArray = [contacts sortedArrayUsingDescriptors:sortDescriptors];
-    
     NSArray *sectiontitle = [[UILocalizedIndexedCollation currentCollation] sectionIndexTitles];
     SEL selector = @selector(sortName);
+    
     for (NSMutableDictionary *contactDict in contacts) {
-        NSString *phoneticFamilyName = [contactDict valueForKey:@"phoneticFamilyName"];
-        if([phoneticFamilyName length] > 0) {
-            CFMutableStringRef mString = CFStringCreateMutableCopy(kCFAllocatorDefault,0,(CFStringRef)phoneticFamilyName);
-            
-            BOOL result = CFStringTransform(mString, NULL, kCFStringTransformHiraganaKatakana, NO);
-            
-            if(result){
-                NSString* resultString = [NSString stringWithFormat:@"%@",mString];
-                [contactDict setObject:resultString forKey:@"phoneticFamilyName"];
-            }
-            CFRelease(mString);
-        }
         
-        NSString *phoneticGivenName = [contactDict valueForKey:@"phoneticGivenName"];
-        if([phoneticGivenName length] > 0) {
-            CFMutableStringRef mString = CFStringCreateMutableCopy(kCFAllocatorDefault,0,(CFStringRef)phoneticGivenName);
-            
-            BOOL result = CFStringTransform(mString, NULL, kCFStringTransformHiraganaKatakana, NO);
-            
-            if(result){
-                NSString* resultString = [NSString stringWithFormat:@"%@",mString];
-                [contactDict setObject:resultString forKey:@"phoneticGivenName"];
-            }
-            CFRelease(mString);
-        }
         NSString *sortedString = @"#";
+        NSString *katakanaFamilyName = [contactDict valueForKey:@"katakanaFamilyName"];
+        NSString *katakanaGivenName = [contactDict valueForKey:@"katakanaGivenName"];
+        NSString *givenName = [contactDict valueForKey:@"givenName"];
+        NSString *familyName = [contactDict valueForKey:@"familyName"];
+        
         if (isLastName) {
-            sortedString = [NSString stringWithFormat:@"%@%@", [contactDict valueForKey:@"phoneticFamilyName"], [contactDict valueForKey:@"familyName"]];
-            if(sortedString.length == 0){
-                sortedString = [NSString stringWithFormat:@"%@%@", [contactDict valueForKey:@"phoneticGivenName"], [contactDict valueForKey:@"givenName"]];
+            if (katakanaFamilyName.length>0) {
+                sortedString = katakanaFamilyName;
+            } else {
+                if (familyName.length > 0) {
+                    if (![self isJapanese:familyName] || ![self isChainese:familyName]) {
+                        sortedString = familyName;
+                    }
+                } else {
+                    if (katakanaGivenName.length>0) {
+                        sortedString = katakanaGivenName;
+                    } else {
+                        if (givenName.length > 0) {
+                            if (![self isJapanese:givenName] || ![self isChainese:givenName]) {
+                                sortedString = givenName;
+                            }
+                        }
+                    }
+                }
             }
         } else {
-            sortedString = [NSString stringWithFormat:@"%@%@", [contactDict valueForKey:@"phoneticGivenName"], [contactDict valueForKey:@"givenName"]];
-            if(sortedString.length == 0){
-                sortedString = [NSString stringWithFormat:@"%@%@", [contactDict valueForKey:@"phoneticFamilyName"], [contactDict valueForKey:@"familyName"]];
+            if (katakanaGivenName.length>0) {
+                sortedString = katakanaGivenName;
+            } else {
+                if (givenName.length > 0) {
+                    if (![self isJapanese:givenName] || ![self isChainese:givenName]) {
+                        sortedString = givenName;
+                    }
+                } else {
+                    if (katakanaFamilyName.length>0) {
+                        sortedString = katakanaFamilyName;
+                    } else {
+                        if (familyName.length > 0) {
+                            if (![self isJapanese:familyName] || ![self isChainese:familyName]) {
+                                sortedString = familyName;
+                            }
+                        }
+                    }
+                }
             }
         }
         
         SortContact *sortContact = [[SortContact alloc] init];
         sortContact.sortName = sortedString;
         NSInteger sectionNumber = [[UILocalizedIndexedCollation currentCollation] sectionForObject:sortContact collationStringSelector:selector];
-//        NSLog(@"sectiontitle %@ %@ %@",[sectiontitle objectAtIndex:sectionNumber], [contactDict valueForKey:@"familyName"], [contactDict valueForKey:@"givenName"]);
         [contactDict setObject:[sectiontitle objectAtIndex:sectionNumber] forKey:@"sortGroup"];
     }
     
     callback(@[[NSNull null], contacts]);
 }
+
+- (BOOL) isJapanese:(NSString *) name
+{
+    NSError *error = NULL;
+    NSRegularExpression *regex =
+    [NSRegularExpression regularExpressionWithPattern:@"/[\u3000-\u303F]|[\u3040-\u309F]|[\u30A0-\u30FF]|[\uFF00-\uFFEF]|[\u4E00-\u9FAF]|[\u2605-\u2606]|[\u2190-\u2195]|\u203B/g;"
+                                              options:0
+                                                error:&error];
+    
+    NSUInteger numberOfMatches = [regex numberOfMatchesInString:name
+                                                        options:0
+                                                          range:NSMakeRange(0, [name length])]; // Check full string
+    
+    return (numberOfMatches > 0);
+}
+
+- (BOOL) isChainese:(NSString *) name
+{
+    NSError *error = NULL;
+    NSRegularExpression *regex =
+    [NSRegularExpression regularExpressionWithPattern:@"/[\u3000-\u303F]|[\u4E00-\u9FAF]|[\u2605-\u2606]|[\u2190-\u2195]|\u203B/g;"
+                                              options:0
+                                                error:&error];
+    
+    NSUInteger numberOfMatches = [regex numberOfMatchesInString:name
+                                                        options:0
+                                                          range:NSMakeRange(0, [name length])]; // Check full string
+    
+    return (numberOfMatches > 0);
+}
+
 
 -(NSDictionary*) contactToDictionary:(CNContact *) person
                       withThumbnails:(BOOL)withThumbnails
@@ -263,6 +299,30 @@ RCT_EXPORT_METHOD(getAllWithoutPhotos:(BOOL)isLastName withCallback:(RCTResponse
     
     if (phoneticFamilyName) {
         [output setObject: (phoneticFamilyName) ? phoneticFamilyName : @"" forKey:@"phoneticFamilyName"];
+    }
+    
+    if([phoneticFamilyName length] > 0) {
+        CFMutableStringRef mString = CFStringCreateMutableCopy(kCFAllocatorDefault,0,(CFStringRef)phoneticFamilyName);
+        
+        BOOL result = CFStringTransform(mString, NULL, kCFStringTransformHiraganaKatakana, NO);
+        
+        if(result){
+            NSString* resultString = [NSString stringWithFormat:@"%@",mString];
+            [output setObject:resultString forKey:@"katakanaFamilyName"];
+        }
+        CFRelease(mString);
+    }
+    
+    if([phoneticGivenName length] > 0) {
+        CFMutableStringRef mString = CFStringCreateMutableCopy(kCFAllocatorDefault,0,(CFStringRef)phoneticGivenName);
+        
+        BOOL result = CFStringTransform(mString, NULL, kCFStringTransformHiraganaKatakana, NO);
+        
+        if(result){
+            NSString* resultString = [NSString stringWithFormat:@"%@",mString];
+            [output setObject:resultString forKey:@"katakanaGivenName"];
+        }
+        CFRelease(mString);
     }
     
     if(middleName){
