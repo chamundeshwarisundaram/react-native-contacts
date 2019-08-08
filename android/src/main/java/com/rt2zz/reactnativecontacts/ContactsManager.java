@@ -70,8 +70,8 @@ public class ContactsManager extends ReactContextBaseJavaModule implements Activ
      * queries CommonDataKinds.Contactables to get phones and emails
      */
     @ReactMethod
-    public void getAll(final Callback callback) {
-        getAllContacts(callback);
+    public void getAll(final boolean isLastNameSortOrder,final Callback callback) {
+        getAllContacts(isLastNameSortOrder,callback);
     }
 
     /**
@@ -80,8 +80,8 @@ public class ContactsManager extends ReactContextBaseJavaModule implements Activ
      * @param callback callback
      */
     @ReactMethod
-    public void getAllWithoutPhotos(final Callback callback) {
-        getAllContacts(callback);
+    public void getAllWithoutPhotos(final boolean isLastNameSortOrder,final Callback callback) {
+        getAllContacts(isLastNameSortOrder,callback);
     }
 
     /**
@@ -90,7 +90,7 @@ public class ContactsManager extends ReactContextBaseJavaModule implements Activ
      *
      * @param callback user provided callback to run at completion
      */
-    private void getAllContacts(final Callback callback) {
+    private void getAllContacts(final boolean isLastNameSortOrder,final Callback callback) {
         AsyncTask<Void,Void,Void> myAsyncTask = new AsyncTask<Void,Void,Void>() {
             @Override
             protected Void doInBackground(final Void ... params) {
@@ -98,7 +98,7 @@ public class ContactsManager extends ReactContextBaseJavaModule implements Activ
                 ContentResolver cr = context.getContentResolver();
 
                 ContactsProvider contactsProvider = new ContactsProvider(cr);
-                WritableArray contacts = contactsProvider.getContacts(context);
+                WritableArray contacts = contactsProvider.getContacts(isLastNameSortOrder,context);
 
                 callback.invoke(null, contacts);
                 return null;

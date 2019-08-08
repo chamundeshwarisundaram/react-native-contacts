@@ -2,6 +2,7 @@ package com.rt2zz.reactnativecontacts;
 
 import android.content.ContentResolver;
 import android.database.Cursor;
+import android.icu.text.Collator;
 import android.net.Uri;
 import android.provider.ContactsContract;
 import android.support.annotation.NonNull;
@@ -14,9 +15,14 @@ import com.facebook.react.bridge.WritableMap;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import android.content.Context;
 
 import static android.provider.ContactsContract.CommonDataKinds.Contactables;
@@ -46,6 +52,8 @@ public class ContactsProvider {
         add(StructuredName.MIDDLE_NAME);
         add(StructuredName.FAMILY_NAME);
         add(StructuredName.PHONETIC_FAMILY_NAME);
+        add(StructuredName.PHONETIC_NAME_STYLE);
+        add(StructuredName.PHONETIC_NAME);
         add(StructuredName.PREFIX);
         add(StructuredName.SUFFIX);
         add(Phone.NUMBER);
@@ -102,7 +110,7 @@ public class ContactsProvider {
             );
 
             try {
-                matchingContacts = loadContactsFrom(cursor,context);
+                matchingContacts = loadContactsFrom(cursor,context,true);
             } finally {
                 if (cursor != null) {
                     cursor.close();
@@ -158,7 +166,7 @@ public class ContactsProvider {
             );
 
             try {
-                matchingContacts = loadContactsFrom(cursor,null);
+                matchingContacts = loadContactsFrom(cursor,null,true);
             } finally {
                 if (cursor != null) {
                     cursor.close();
@@ -173,7 +181,7 @@ public class ContactsProvider {
         return null;
     }
 
-    public WritableArray getContacts(Context context) {
+    public WritableArray getContacts(boolean isLastNameSortOrder,Context context) {
         Map<String, Contact> justMe;
         {
             Cursor cursor = contentResolver.query(
@@ -185,7 +193,7 @@ public class ContactsProvider {
             );
 
             try {
-                justMe = loadContactsFrom(cursor,context);
+                justMe = loadContactsFrom(cursor,context,isLastNameSortOrder);
             } finally {
                 if (cursor != null) {
                     cursor.close();
@@ -220,7 +228,7 @@ public class ContactsProvider {
             );
 
             try {
-                everyoneElse = loadContactsFrom(cursor,context);
+                everyoneElse = loadContactsFrom(cursor,context,isLastNameSortOrder);
             } finally {
                 if (cursor != null) {
                     cursor.close();
@@ -240,7 +248,7 @@ public class ContactsProvider {
     }
 
     @NonNull
-    private Map<String, Contact> loadContactsFrom(Cursor cursor,Context context) {
+    private Map<String, Contact> loadContactsFrom(Cursor cursor,Context context,final boolean isLastNameSortOrder) {
 
         Map<String, Contact> map = new LinkedHashMap<>();
 
@@ -302,6 +310,76 @@ public class ContactsProvider {
                     contact.phoneticFamilyName= cursor.getString(cursor.getColumnIndex(StructuredName.PHONETIC_FAMILY_NAME));
                     contact.prefix = cursor.getString(cursor.getColumnIndex(StructuredName.PREFIX));
                     contact.suffix = cursor.getString(cursor.getColumnIndex(StructuredName.SUFFIX));
+                    contact.phoneticNameStyle= cursor.getString(cursor.getColumnIndex(StructuredName.PHONETIC_NAME_STYLE));
+                    contact.phoneticName= cursor.getString(cursor.getColumnIndex(StructuredName.PHONETIC_NAME));
+
+                    if(contact.phoneticNameStyle.equalsIgnoreCase("4")) {
+                        //JAPANESE Phonetic style..
+                        if (!TextUtils.isEmpty(contact.phoneticFamilyName)) {
+
+                            contact.katakanaFamilyName = hiragana2Katakana(contact.phoneticFamilyName);
+                            //contact.katakanaFamilyName = convertToHiragana(contact.phoneticFamilyName);
+                        }
+                        if (!TextUtils.isEmpty(contact.phoneticGivenName)) {
+                            contact.katakanaGivenName = hiragana2Katakana(contact.phoneticGivenName);
+                            //contact.phoneticGivenName = convertToHiragana(contact.phoneticGivenName);
+                        }
+                    }
+
+
+                    //Keeping the default name
+                    String sortedString = "#";
+
+                    if (isLastNameSortOrder) {
+                        if(!TextUtils.isEmpty(contact.katakanaFamilyName)){
+                            sortedString=contact.katakanaFamilyName;
+                        }else  if(!TextUtils.isEmpty(contact.familyName)){
+                            if(!contact.phoneticNameStyle.equalsIgnoreCase("4") || ! isChineseChar(contact.familyName)) {
+                                sortedString = contact.familyName;
+                            }
+                        }else if(!TextUtils.isEmpty(contact.katakanaGivenName)){
+                           sortedString= contact.katakanaGivenName;
+                        }else if(!TextUtils.isEmpty(contact.givenName)){
+                            if(!contact.phoneticNameStyle.equalsIgnoreCase("4") || ! isChineseChar(contact.familyName)) {
+                                sortedString = contact.givenName;
+                            }
+                        }
+
+                    } else {
+
+                        if(!TextUtils.isEmpty(contact.katakanaGivenName)){
+                            sortedString= contact.katakanaGivenName;
+                        }else if(!TextUtils.isEmpty(contact.givenName)){
+                            if(!contact.phoneticNameStyle.equalsIgnoreCase("4") || ! isChineseChar(contact.familyName)) {
+                                sortedString = contact.givenName;
+                            }
+                        }else if(!TextUtils.isEmpty(contact.katakanaFamilyName)){
+                            sortedString=contact.katakanaFamilyName;
+                        }else  if(!TextUtils.isEmpty(contact.familyName)){
+                            if(!contact.phoneticNameStyle.equalsIgnoreCase("4") || ! isChineseChar(contact.familyName)) {
+                                sortedString = contact.familyName;
+                            }
+                        }
+                    }
+
+                    contact.sortGroup=String.valueOf(getSortGroup(sortedString));
+                    contact.sortName=sortedString;
+
+                    StringBuilder stringBuilder = new StringBuilder();
+                    stringBuilder.append("sortName: ").append(contact.sortName).append(" , ")
+                            .append("phoneticFamilyName: ").append(contact.phoneticFamilyName).append(" , ")
+                            .append("katakanaFamilyName: ").append(contact.katakanaFamilyName).append(" , ")
+                            .append("phoneticGivenName: ").append(contact.phoneticGivenName).append(" , ")
+                            .append("katakanaGivenName: ").append(contact.katakanaGivenName).append(" , ")
+                            .append("sortGroup: ").append(contact.sortGroup).append(" , ")
+                            .append("givenName: ").append(contact.givenName).append(" , ")
+                            .append("middleName: ").append(contact.middleName).append(" , ")
+                            .append("familyName: ").append(contact.familyName);
+
+
+                    //Log.d("ContactsProvider", "Contacts: " +stringBuilder.toString());
+                    //Log.d("ContactsProvider", "ContactssortGroup  " + contact.sortGroup +" , sortedString: "+sortedString);
+
                     break;
                 case Phone.CONTENT_ITEM_TYPE:
                     String phoneNumber = cursor.getString(cursor.getColumnIndex(Phone.NUMBER));
@@ -444,15 +522,111 @@ public class ContactsProvider {
         return null;
     }
 
+    private boolean isChineseChar(String c){
+
+        Pattern p = Pattern.compile("/[\u3000-\u303F]|[\u4E00-\u9FAF]|[\u2605-\u2606]|[\u2190-\u2195]|\u203B/g;");
+        Matcher m= p.matcher(c);
+        if(m.find()){
+            return true;
+        }
+        return false;
+
+    }
+
+
+    public String hiragana2Katakana(String str) {
+
+        int delta = 'ア' - 'あ'; //差分
+        StringBuilder buf = new StringBuilder(str.length());
+        for (int i = 0; i < str.length(); i++) {
+            char code = str.charAt(i);
+            Character.UnicodeBlock block = Character.UnicodeBlock.of(code);
+            if (block != null && block.equals(Character.UnicodeBlock.HIRAGANA)) {
+                buf.append((char)(code + delta));
+            } else {
+                buf.append(code);
+            }
+        }
+        return buf.toString();
+    }
+
+    private char getSortGroup(String name) {
+
+        if (name == null || name.length() == 0) return '#';
+
+        char c = name.charAt(0);
+        if (isChineseChar(String.valueOf(c))) {
+            //Log.d("Kana", "Converted from Chinese character found : " + c);
+            return '#';
+        }
+
+        if (isKatakana(c)) {
+            //Change to Hiragana.
+            //Log.d("Kana", "Converted from Katakana: " + c);
+            c = toHiragana(c);
+           // Log.d("Kana", "Converted from Katakana to Hiragana: " + c);
+        }
+
+
+        //reference: https://www.unicode.org/charts/PDF/U3040.pdf / http://japanese-lesson.com/resources/reference/alphabetical.html
+        if ((c >= '\u3041') && (c <= '\u304a')) {
+            //あ
+            return (char) '\u3042';
+
+        } else if ((c >= '\u304b') && (c <= '\u3054')) {
+            // か
+            return (char) '\u304b';
+
+        } else if ((c >= '\u3055') && (c <= '\u305e')) {
+            //さ
+            return (char) '\u3055';
+
+        } else if ((c >= '\u305f') && (c <= '\u3069')) {
+            //た
+            return (char) '\u305f';
+
+        } else if ((c >= '\u306a') && (c <= '\u306e')) {
+            //な
+            return (char) '\u306a';
+
+        } else if ((c >= '\u306f') && (c <= '\u307f')) {
+            //は
+            return (char) '\u306f';
+
+        } else if ((c >= '\u307e') && (c <= '\u3082')) {
+            //ま
+            return (char) '\u307e';
+
+        } else if ((c >= '\u3083') && (c <= '\u3088')) {
+            //や
+            return (char) '\u3084';
+
+        } else if ((c >= '\u3089') && (c <= '\u308d')) {
+            //ら
+            return (char) '\u3089';
+
+        } else if ((c >= '\u308e') && (c <= '\u308f')) {
+            //わ
+            return (char) '\u308e';
+
+        }
+
+        return c;
+
+
+    }
+
     private static class Contact {
         private String contactId;
         private String rawContactId;
         private String displayName;
         private String givenName = "";
         private String phoneticGivenName = "";
+        private String katakanaGivenName = "";
         private String middleName = "";
         private String familyName = "";
         private String phoneticFamilyName = "";
+        private String katakanaFamilyName = "";
         private String prefix = "";
         private String suffix = "";
         private String company = "";
@@ -466,6 +640,10 @@ public class ContactsProvider {
         private List<Item> phones = new ArrayList<>();
         private List<PostalAddressItem> postalAddresses = new ArrayList<>();
         private Birthday birthday;
+        private String sortName = "";
+        private String sortGroup = "";
+        private String phoneticNameStyle = "";
+        private String phoneticName = "";
 
 
         public Contact(String contactId) {
@@ -489,6 +667,10 @@ public class ContactsProvider {
             contact.putString("note", note);
             contact.putBoolean("hasThumbnail", this.hasPhoto);
             contact.putString("thumbnailPath", photoUri == null ? "" : photoUri);
+            contact.putString("katakanaFamilyName",katakanaFamilyName);
+            contact.putString("katakanaGivenName",katakanaGivenName);
+            contact.putString("sortName",sortName);
+            contact.putString("sortGroup",sortGroup);
 
             WritableArray phoneNumbers = Arguments.createArray();
             for (Item item : phones) {
@@ -609,5 +791,140 @@ public class ContactsProvider {
                 return "other";
             }
         }
+    }
+
+    public String convertKana(String input) {
+        if (input == null || input.length() == 0) return "";
+
+        StringBuilder out = new StringBuilder();
+        char ch = input.charAt(0);
+
+        if (isHiragana(ch)) { // convert to hiragana to katakana
+            for (int i = 0; i < input.length(); i++) {
+                out.append(toKatakana(input.charAt(i)));
+            }
+       } else { // do nothing if neither
+            return input;
+        }
+        //else if (isKatakana(ch)) { // convert to katakana to hiragana
+//            for (int i = 0; i < input.length(); i++) {
+//                out.append(toHiragana(input.charAt(i)));
+//            }
+//        }
+//        else { // do nothing if neither
+//            return input;
+//        }
+
+        return out.toString();
+    }
+
+    public String convertToHiragana(String input) {
+        if (input == null || input.length() == 0) return "";
+
+        StringBuilder out = new StringBuilder();
+        char ch = input.charAt(0);
+       if (isKatakana(ch)) { // convert to katakana to hiragana
+            for (int i = 0; i < input.length(); i++) {
+                out.append(toHiragana(input.charAt(i)));
+            }
+        }
+        else { // do nothing if neither
+            return input;
+        }
+
+        return out.toString();
+    }
+
+    /**
+     * Determines if this character is a Japanese Kana.
+     */
+    public  boolean isKana(char c) {
+        return (isHiragana(c) || isKatakana(c));
+    }
+
+    /**
+     * Determines if this character is one of the Japanese Hiragana.
+     */
+    public  boolean isHiragana(char c) {
+        return (('\u3041' <= c) && (c <= '\u309e'));
+    }
+
+    /**
+     * Determines if this character is one of the Japanese Katakana.
+     */
+    public  boolean isKatakana(char c) {
+        return (isHalfWidthKatakana(c) || isFullWidthKatakana(c));
+    }
+
+    /**
+     * Determines if this character is a Half width Katakana.
+     */
+    public  boolean isHalfWidthKatakana(char c) {
+        return (('\uff66' <= c) && (c <= '\uff9d'));
+    }
+
+    /**
+     * Determines if this character is a Full width Katakana.
+     */
+    public  boolean isFullWidthKatakana(char c) {
+        return (('\u30a1' <= c) && (c <= '\u30fe'));
+    }
+
+    /**
+     * Determines if this character is a Kanji character.
+     */
+    public  boolean isKanji(char c) {
+        if (('\u4e00' <= c) && (c <= '\u9fa5')) {
+            return true;
+        }
+        if (('\u3005' <= c) && (c <= '\u3007')) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Determines if this character could be used as part of
+     * a romaji character.
+     */
+    public  boolean isRomaji(char c) {
+        if (('\u0041' <= c) && (c <= '\u0090'))
+            return true;
+        else if (('\u0061' <= c) && (c <= '\u007a'))
+            return true;
+        else if (('\u0021' <= c) && (c <= '\u003a'))
+            return true;
+        else if (('\u0041' <= c) && (c <= '\u005a'))
+            return true;
+		else
+        return false;
+    }
+
+    /**
+     * Translates this character into the equivalent Katakana character.
+     * The function only operates on Hiragana and always returns the
+     * Full width version of the Katakana. If the character is outside the
+     * Hiragana then the origianal character is returned.
+     */
+    public  char toKatakana(char c) {
+        if (isHiragana(c)) {
+            return (char) (c + 0x60);
+        }
+        return c;
+    }
+
+    /**
+     * Translates this character into the equivalent Hiragana character.
+     * The function only operates on Katakana characters
+     * If the character is outside the Full width or Half width
+     * Katakana then the origianal character is returned.
+     */
+    public  char toHiragana(char c) {
+        if (isFullWidthKatakana(c)) {
+            return (char) (c - 0x60);
+        } else if (isHalfWidthKatakana(c)) {
+            return (char) (c - 0xcf25);
+        }
+        return c;
     }
 }
