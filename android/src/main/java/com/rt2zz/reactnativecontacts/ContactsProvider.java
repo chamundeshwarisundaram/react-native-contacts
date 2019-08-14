@@ -313,7 +313,8 @@ public class ContactsProvider {
                     contact.phoneticNameStyle= cursor.getString(cursor.getColumnIndex(StructuredName.PHONETIC_NAME_STYLE));
                     contact.phoneticName= cursor.getString(cursor.getColumnIndex(StructuredName.PHONETIC_NAME));
 
-                    if(contact.phoneticNameStyle.equalsIgnoreCase("4")) {
+                    //Fixed crash issue.
+                    if(contact.phoneticNameStyle != null && contact.phoneticNameStyle.equalsIgnoreCase("4")) {
                         //JAPANESE Phonetic style..
                         if (!TextUtils.isEmpty(contact.phoneticFamilyName)) {
 
