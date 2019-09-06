@@ -565,16 +565,18 @@ public class ContactsProvider {
             //Change to Hiragana.
             //Log.d("Kana", "Converted from Katakana: " + c);
             c = toHiragana(c);
-           // Log.d("Kana", "Converted from Katakana to Hiragana: " + c);
+            //Log.d("Kana", "Converted from Katakana to Hiragana: " + c);
+        }else {
+            return c;
         }
 
 
         //reference: https://www.unicode.org/charts/PDF/U3040.pdf / http://japanese-lesson.com/resources/reference/alphabetical.html
-        if ((c >= '\u3041') && (c <= '\u304a')) {
+        if (((c >= '\u3041') && (c <= '\u304a') )|| (c == '\u3094')) {
             //あ
             return (char) '\u3042';
 
-        } else if ((c >= '\u304b') && (c <= '\u3054')) {
+        } else if ( ((c >= '\u304b') && (c <= '\u3054')) || (c == '\u3095') || (c == '\u3096')) {
             // か
             return (char) '\u304b';
 
@@ -590,7 +592,7 @@ public class ContactsProvider {
             //な
             return (char) '\u306a';
 
-        } else if ((c >= '\u306f') && (c <= '\u307f')) {
+        } else if ((c >= '\u306f') && (c <= '\u307d')) {
             //は
             return (char) '\u306f';
 
@@ -606,16 +608,17 @@ public class ContactsProvider {
             //ら
             return (char) '\u3089';
 
-        } else if ((c >= '\u308e') && (c <= '\u308f')) {
+        } else if ((c >= '\u308e') && (c <= '\u3093')) {
             //わ
-            return (char) '\u308e';
-
+            return (char) '\u308f';
         }
 
-        return c;
+        //return default group as '#'
+        return '#';
 
 
     }
+
 
     private static class Contact {
         private String contactId;
