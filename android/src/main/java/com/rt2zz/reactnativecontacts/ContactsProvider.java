@@ -314,7 +314,8 @@ public class ContactsProvider {
                     contact.phoneticName= cursor.getString(cursor.getColumnIndex(StructuredName.PHONETIC_NAME));
 
                     //Fixed crash issue.
-                    if(contact.phoneticNameStyle != null && contact.phoneticNameStyle.equalsIgnoreCase("4")) {
+                    //Fixed : Contact not displayed if the phoneticFamilyname or PhoneticGivenName exist and if phoneticNameStyle not 4.
+                    if( (!TextUtils.isEmpty(contact.phoneticFamilyName) || !TextUtils.isEmpty(contact.phoneticGivenName) ) || (contact.phoneticNameStyle != null && contact.phoneticNameStyle.equalsIgnoreCase("4"))) {
                         //JAPANESE Phonetic style..
                         if (!TextUtils.isEmpty(contact.phoneticFamilyName)) {
 
@@ -556,6 +557,10 @@ public class ContactsProvider {
         if (name == null || name.length() == 0) return '#';
 
         char c = name.charAt(0);
+        if(Character.isDigit(c)){
+            //if the name start with number it should display all time in # group.
+            return '#';
+        }
         if (isChineseChar(String.valueOf(c))) {
             //Log.d("Kana", "Converted from Chinese character found : " + c);
             return '#';
