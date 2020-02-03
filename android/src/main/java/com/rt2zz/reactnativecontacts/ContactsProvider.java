@@ -557,10 +557,6 @@ public class ContactsProvider {
         if (name == null || name.length() == 0) return '#';
 
         char c = name.charAt(0);
-        if(Character.isDigit(c)){
-            //if the name start with number it should display all time in # group.
-            return '#';
-        }
         if (isChineseChar(String.valueOf(c))) {
             //Log.d("Kana", "Converted from Chinese character found : " + c);
             return '#';
@@ -572,7 +568,17 @@ public class ContactsProvider {
             c = toHiragana(c);
             //Log.d("Kana", "Converted from Katakana to Hiragana: " + c);
         }else {
-            return c;
+            //if the name start with number/special character/small letter it should display all time in # group.
+            if(!Character.isLetter(c)){
+                //Log.d("Kana", "returned group as #.  sortname: " + name);
+                return '#';
+            }else {
+                if(Character.isAlphabetic(c)){
+                    //Log.d("Kana", "returned group as uppercase.  sortname: " + name + " Character.toUpperCase(c): "+Character.toUpperCase(c));
+                    return Character.toUpperCase(c);
+                }
+                return c;
+            }
         }
 
 
