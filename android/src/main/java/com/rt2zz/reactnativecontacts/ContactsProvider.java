@@ -24,6 +24,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import android.content.Context;
+import java.text.Normalizer;
 
 import static android.provider.ContactsContract.CommonDataKinds.Contactables;
 import static android.provider.ContactsContract.CommonDataKinds.Email;
@@ -542,6 +543,7 @@ public class ContactsProvider {
         StringBuilder buf = new StringBuilder(str.length());
         for (int i = 0; i < str.length(); i++) {
             char code = str.charAt(i);
+            code = normalize(code, Normalizer.Form.NFKC);
             Character.UnicodeBlock block = Character.UnicodeBlock.of(code);
             if (block != null && block.equals(Character.UnicodeBlock.HIRAGANA)) {
                 buf.append((char)(code + delta));
