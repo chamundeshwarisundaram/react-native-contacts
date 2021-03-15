@@ -35,6 +35,7 @@ import static android.provider.ContactsContract.CommonDataKinds.StructuredName;
 import static android.provider.ContactsContract.CommonDataKinds.Note;
 import static android.provider.ContactsContract.CommonDataKinds.Website;
 import static android.provider.ContactsContract.CommonDataKinds.StructuredPostal;
+import static java.text.Normalizer.normalize;
 
 public class ContactsProvider {
     public static final int ID_FOR_PROFILE_CONTACT = -1;
