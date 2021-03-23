@@ -540,11 +540,11 @@ public class ContactsProvider {
 
     public String hiragana2Katakana(String str) {
 
+        str = normalize(str, Normalizer.Form.NFKC);
         int delta = 'ア' - 'あ'; //差分
         StringBuilder buf = new StringBuilder(str.length());
         for (int i = 0; i < str.length(); i++) {
             char code = str.charAt(i);
-            code = normalize(code, Normalizer.Form.NFKC);
             Character.UnicodeBlock block = Character.UnicodeBlock.of(code);
             if (block != null && block.equals(Character.UnicodeBlock.HIRAGANA)) {
                 buf.append((char)(code + delta));
