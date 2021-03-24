@@ -540,7 +540,6 @@ public class ContactsProvider {
 
     public String hiragana2Katakana(String str) {
 
-        str = normalize(str, Normalizer.Form.NFKC);
         int delta = 'ア' - 'あ'; //差分
         StringBuilder buf = new StringBuilder(str.length());
         for (int i = 0; i < str.length(); i++) {
@@ -552,7 +551,8 @@ public class ContactsProvider {
                 buf.append(code);
             }
         }
-        return buf.toString();
+        str = normalize(buf.toString(), Normalizer.Form.NFKC);   
+        return str;
     }
 
     private char getSortGroup(String name) {
